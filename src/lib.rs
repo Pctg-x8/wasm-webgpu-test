@@ -506,10 +506,7 @@ extern "C" {
     pub type GPUQueue;
 
     #[wasm_bindgen(method, catch)]
-    pub fn submit(
-        queue: &GPUQueue,
-        command_buffers: Box<[GPUCommandBuffer]>,
-    ) -> Result<(), JsValue>;
+    pub fn submit(queue: &GPUQueue, command_buffers: Vec<GPUCommandBuffer>) -> Result<(), JsValue>;
 }
 
 #[wasm_bindgen]
@@ -594,6 +591,7 @@ extern "C" {
     );
 }
 
+#[allow(non_snake_case)]
 #[wasm_bindgen(js_namespace = GPUBufferUsage)]
 extern "C" {
     #[wasm_bindgen]
@@ -663,7 +661,7 @@ pub async fn start(render_target_element: &HTMLCanvasElement) {
         .expect("invalid")
         .expect("not iterable");
     for x in features_iter {
-        log(&format!("{x:?}"));
+        log(&format!("feature: {x:?}"));
     }
 
     let ctx: GPUCanvasContext = render_target_element
@@ -708,7 +706,7 @@ pub async fn start(render_target_element: &HTMLCanvasElement) {
         .expect("Failed to finish copy cmd recording");
     device
         .queue()
-        .submit(Box::new([copy_cmd]))
+        .submit(vec![copy_cmd])
         .expect("Failed to send copy commands");
 
     let shader = device
@@ -789,6 +787,6 @@ pub async fn start(render_target_element: &HTMLCanvasElement) {
         .expect("Failed to finish render commands");
     device
         .queue()
-        .submit(Box::new([render_commands]))
+        .submit(vec![render_commands])
         .expect("Failed to submit render commands");
 }
