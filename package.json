@@ -1,8 +1,8 @@
 {
     "name": "wasm-webgpu-test",
     "scripts": {
-        "wasm": "wasm-pack build . --target web",
-        "dev": "pnpm wasm && vite dev"
+        "wasm-dev": "wasm-pack build . --target web --dev",
+        "dev": "pnpm wasm-dev && vite dev"
     },
     "dependencies": {
         "typescript": "^5.1.6",
