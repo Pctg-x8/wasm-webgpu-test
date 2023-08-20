@@ -30,45 +30,59 @@ pub struct GPUCommandBufferDescriptor {
 }
 
 #[repr(transparent)]
-#[wasm_bindgen]
 pub struct GPURenderPassColorAttachment(Object);
 impl GPURenderPassColorAttachment {
-    pub fn new(view: &GPUTextureView) -> Result<Self, JsValue> {
+    pub fn new(view: &GPUTextureView) -> Self {
         let obj = Object::new();
-        Reflect::set(&obj, &"view".into(), &view)?;
-        Reflect::set(&obj, &"loadOp".into(), &"load".into())?;
-        Reflect::set(&obj, &"storeOp".into(), &"store".into())?;
 
-        Ok(Self(obj))
+        Reflect::set(&obj, &"view".into(), &view).unwrap();
+        Reflect::set(&obj, &"loadOp".into(), &"load".into()).unwrap();
+        Reflect::set(&obj, &"storeOp".into(), &"store".into()).unwrap();
+
+        Self(obj)
     }
 
-    pub fn resolve_to(self, view: &GPUTextureView) -> Result<Self, JsValue> {
-        Reflect::set(&self.0, &"resolveTarget".into(), view).map(|_| self)
+    pub fn resolve_to(self, view: &GPUTextureView) -> Self {
+        Reflect::set(&self.0, &"resolveTarget".into(), view).unwrap();
+
+        self
     }
 
-    fn clear_by(self, value: &JsValue) -> Result<Self, JsValue> {
-        Reflect::set(&self.0, &"clearValue".into(), value)?;
-        Reflect::set(&self.0, &"loadOp".into(), &"clear".into())?;
+    fn clear_by(self, value: &JsValue) -> Self {
+        Reflect::set(&self.0, &"clearValue".into(), value).unwrap();
+        Reflect::set(&self.0, &"loadOp".into(), &"clear".into()).unwrap();
 
-        Ok(self)
+        self
     }
 
-    pub fn clear_by_array(self, values: &[f32; 4]) -> Result<Self, JsValue> {
+    pub fn clear_by_array(self, values: &[f32; 4]) -> Self {
         let values: Array = values
             .into_iter()
             .map(|&x| JsValue::from_f64(x as _))
             .collect();
 
-        self.clear_by(values.as_ref())
+        self.clear_by(&values)
     }
 
-    pub fn clear_by_object(self, value: &Object) -> Result<Self, JsValue> {
-        self.clear_by(value.as_ref())
+    pub fn clear_by_object(self, value: &Object) -> Self {
+        self.clear_by(value)
     }
 }
 impl AsRef<JsValue> for GPURenderPassColorAttachment {
     fn as_ref(&self) -> &JsValue {
         self.0.as_ref()
+    }
+}
+impl IntoWasmAbi for GPURenderPassColorAttachment {
+    type Abi = <Object as IntoWasmAbi>::Abi;
+
+    fn into_abi(self) -> Self::Abi {
+        Object::into_abi(self.0)
+    }
+}
+impl wasm_bindgen::describe::WasmDescribe for GPURenderPassColorAttachment {
+    fn describe() {
+        Object::describe()
     }
 }
 
@@ -82,33 +96,56 @@ impl GPURenderPassDescriptor {
         Reflect::set(
             &obj,
             &"colorAttachments".into(),
-            self.color_attachments
-                .into_iter()
-                .collect::<Array>()
-                .as_ref(),
+            &Array::from_iter(self.color_attachments),
         )?;
 
         Ok(obj)
     }
 }
+impl IntoWasmAbi for GPURenderPassDescriptor {
+    type Abi = <Object as IntoWasmAbi>::Abi;
+
+    fn into_abi(self) -> Self::Abi {
+        Object::into_abi(self.into_object().expect("Failed to convert to wasm abi"))
+    }
+}
+impl wasm_bindgen::describe::WasmDescribe for GPURenderPassDescriptor {
+    fn describe() {
+        Object::describe()
+    }
+}
 
 pub struct GPUCanvasConfiguration(Object);
 impl GPUCanvasConfiguration {
-    pub fn new(device: &GPUDevice) -> Result<Self, JsValue> {
+    pub fn new(device: &GPUDevice) -> Self {
         let o = Object::new();
 
-        Reflect::set(&o, &"device".into(), device)?;
+        Reflect::set(&o, &"device".into(), device).unwrap();
 
-        Self(o).with_format(&NAVIGATOR_GPU.get_preferred_canvas_format())
+        Self(o)
     }
 
-    pub fn with_format(self, format: &str) -> Result<Self, JsValue> {
-        Reflect::set(&self.0, &"format".into(), &format.into()).map(|_| self)
+    pub fn with_format(self, format: &str) -> Self {
+        Reflect::set(&self.0, &"format".into(), &format.into()).unwrap();
+
+        self
     }
 }
 impl From<GPUCanvasConfiguration> for Object {
     fn from(value: GPUCanvasConfiguration) -> Self {
         value.0
+    }
+}
+impl IntoWasmAbi for GPUCanvasConfiguration {
+    type Abi = <Object as IntoWasmAbi>::Abi;
+
+    fn into_abi(self) -> Self::Abi {
+        Object::into_abi(self.0)
+    }
+}
+impl wasm_bindgen::describe::WasmDescribe for GPUCanvasConfiguration {
+    fn describe() {
+        Object::describe()
     }
 }
 
@@ -145,8 +182,11 @@ impl GPUPipelineLayoutDescriptor {
     pub fn new(bind_group_layouts: Vec<GPUBindGroupLayout>) -> Result<Self, JsValue> {
         let o = Object::new();
 
-        let layouts = bind_group_layouts.into_iter().collect::<Array>();
-        Reflect::set(&o, &"bindGroupLayouts".into(), layouts.as_ref())?;
+        Reflect::set(
+            &o,
+            &"bindGroupLayouts".into(),
+            &Array::from_iter(bind_group_layouts),
+        )?;
 
         Ok(Self(o))
     }
@@ -190,17 +230,21 @@ pub struct GPURenderPipelineVertexProperties<'s> {
     pub buffers: Option<Vec<GPUVertexBufferLayout>>,
 }
 impl GPURenderPipelineVertexProperties<'_> {
-    pub fn into_object(self) -> Result<Object, JsValue> {
+    pub fn into_object(self) -> Object {
         let o = Object::new();
 
-        Reflect::set(&o, &"entryPoint".into(), &self.entry_point.into())?;
-        Reflect::set(&o, &"module".into(), self.module.as_ref())?;
+        Reflect::set(&o, &"entryPoint".into(), &self.entry_point.into()).unwrap();
+        Reflect::set(&o, &"module".into(), self.module).unwrap();
         if let Some(bs) = self.buffers {
-            let buffers = serde_wasm_bindgen::to_value(&bs)?;
-            Reflect::set(&o, &"buffers".into(), buffers.as_ref())?;
+            Reflect::set(
+                &o,
+                &"buffers".into(),
+                &serde_wasm_bindgen::to_value(&bs).unwrap(),
+            )
+            .unwrap();
         }
 
-        Ok(o)
+        o
     }
 }
 
@@ -216,42 +260,37 @@ pub struct GPURenderPipelineFragmentProperties<'s> {
     pub targets: Vec<GPURenderPipelineFragmentTarget>,
 }
 impl GPURenderPipelineFragmentProperties<'_> {
-    pub fn into_object(self) -> Result<Object, JsValue> {
+    pub fn into_object(self) -> Object {
         let o = Object::new();
 
-        Reflect::set(&o, &"entryPoint".into(), &self.entry_point.into())?;
-        Reflect::set(&o, &"module".into(), self.module.as_ref())?;
+        Reflect::set(&o, &"entryPoint".into(), &self.entry_point.into()).unwrap();
+        Reflect::set(&o, &"module".into(), self.module).unwrap();
         Reflect::set(
             &o,
             &"targets".into(),
-            serde_wasm_bindgen::to_value(&self.targets)?.as_ref(),
-        )?;
+            &serde_wasm_bindgen::to_value(&self.targets).unwrap(),
+        )
+        .unwrap();
 
-        Ok(o)
+        o
     }
 }
 
 pub struct GPURenderPipelineDescriptor(Object);
 impl GPURenderPipelineDescriptor {
-    pub fn new(
-        layout: &GPUPipelineLayout,
-        vertex: GPURenderPipelineVertexProperties,
-    ) -> Result<Self, JsValue> {
+    pub fn new(layout: &GPUPipelineLayout, vertex: GPURenderPipelineVertexProperties) -> Self {
         let o = Object::new();
 
-        Reflect::set(&o, &"layout".into(), layout.as_ref())?;
-        Reflect::set(&o, &"vertex".into(), vertex.into_object()?.as_ref())?;
+        Reflect::set(&o, &"layout".into(), layout).unwrap();
+        Reflect::set(&o, &"vertex".into(), &vertex.into_object()).unwrap();
 
-        Ok(Self(o))
+        Self(o)
     }
 
-    pub fn fragment(self, fragment: GPURenderPipelineFragmentProperties) -> Result<Self, JsValue> {
-        Reflect::set(
-            &self.0,
-            &"fragment".into(),
-            fragment.into_object()?.as_ref(),
-        )
-        .map(|_| self)
+    pub fn fragment(self, fragment: GPURenderPipelineFragmentProperties) -> Self {
+        Reflect::set(&self.0, &"fragment".into(), &fragment.into_object()).unwrap();
+
+        self
     }
 }
 impl From<GPURenderPipelineDescriptor> for Object {
@@ -286,7 +325,7 @@ extern "C" {
     pub type GPUCanvasContext;
 
     #[wasm_bindgen(method)]
-    pub fn configure(ctx: &GPUCanvasContext, configuration: Object);
+    pub fn configure(ctx: &GPUCanvasContext, configuration: GPUCanvasConfiguration);
     #[wasm_bindgen(method, catch, js_name = getCurrentTexture)]
     pub fn get_current_texture(ctx: &GPUCanvasContext) -> Result<GPUTexture, JsValue>;
 
@@ -417,7 +456,7 @@ extern "C" {
     #[wasm_bindgen(method, js_name = beginRenderPass, catch)]
     pub fn begin_render_pass(
         this: &GPUCommandEncoder,
-        descriptor: Object,
+        descriptor: GPURenderPassDescriptor,
     ) -> Result<GPURenderPassEncoder, JsValue>;
 }
 
@@ -558,13 +597,7 @@ pub async fn start(render_target_element: &HTMLCanvasElement) {
 
     let device = adapter.request_device().await.unchecked_into::<GPUDevice>();
     let format = gpu.get_preferred_canvas_format();
-    ctx.configure(
-        GPUCanvasConfiguration::new(&device)
-            .expect("Failed to create configuration object")
-            .with_format(&format)
-            .expect("Failed to set format")
-            .into(),
-    );
+    ctx.configure(GPUCanvasConfiguration::new(&device).with_format(&format));
     log(&format!("canvas was configured with format {format}"));
 
     let buffer = device
@@ -631,13 +664,11 @@ pub async fn start(render_target_element: &HTMLCanvasElement) {
                     }]),
                 },
             )
-            .expect("Failed to create descriptor")
             .fragment(GPURenderPipelineFragmentProperties {
                 entry_point: "fsh".into(),
                 module: &shader,
                 targets: vec![GPURenderPipelineFragmentTarget { format }],
-            })
-            .expect("Failed to set fragment properties"),
+            }),
         )
         .expect("Failed to create render pipeline");
 
@@ -647,9 +678,7 @@ pub async fn start(render_target_element: &HTMLCanvasElement) {
         .create_view()
         .expect("Failed to create target view");
     let main_target_attachment = GPURenderPassColorAttachment::new(&render_target_view)
-        .expect("Failed to create color attachment desc")
-        .clear_by_array(&[0.0, 0.0, 0.0, 1.0])
-        .expect("Failed to set clear values");
+        .clear_by_array(&[0.0, 0.0, 0.0, 1.0]);
     let render_pass = GPURenderPassDescriptor {
         color_attachments: vec![main_target_attachment],
     };
@@ -658,11 +687,7 @@ pub async fn start(render_target_element: &HTMLCanvasElement) {
         .create_command_encoder()
         .expect("Failed to begin render command recording");
     let rp = render_commands
-        .begin_render_pass(
-            render_pass
-                .into_object()
-                .expect("Failed to construct render pass object"),
-        )
+        .begin_render_pass(render_pass)
         .expect("Failed to begin render pass");
     rp.set_pipeline(&render_pipeline)
         .expect("Failed to set pipeline");
