@@ -311,6 +311,42 @@ impl wasm_bindgen::describe::WasmDescribe for GPURenderPipelineDescriptor {
     }
 }
 
+pub struct GPURenderBundleEncoderDescriptor(Object);
+impl GPURenderBundleEncoderDescriptor {
+    pub fn new(color_formats: Vec<String>) -> Self {
+        let o = Object::new();
+
+        Reflect::set(
+            &o,
+            &"colorFormats".into(),
+            &color_formats
+                .into_iter()
+                .map(Into::<JsValue>::into)
+                .collect::<Array>(),
+        )
+        .unwrap();
+
+        Self(o)
+    }
+}
+impl From<GPURenderBundleEncoderDescriptor> for Object {
+    fn from(value: GPURenderBundleEncoderDescriptor) -> Self {
+        value.0
+    }
+}
+impl IntoWasmAbi for GPURenderBundleEncoderDescriptor {
+    type Abi = <Object as IntoWasmAbi>::Abi;
+
+    fn into_abi(self) -> Self::Abi {
+        Object::into_abi(self.0)
+    }
+}
+impl wasm_bindgen::describe::WasmDescribe for GPURenderBundleEncoderDescriptor {
+    fn describe() {
+        Object::describe()
+    }
+}
+
 #[wasm_bindgen]
 extern "C" {
     pub type HTMLCanvasElement;
@@ -383,6 +419,11 @@ extern "C" {
         device: &GPUDevice,
         descriptor: GPURenderPipelineDescriptor,
     ) -> Result<GPURenderPipeline, JsValue>;
+    #[wasm_bindgen(method, js_name = createRenderBundleEncoder, catch)]
+    pub fn create_render_bundle_encoder(
+        device: &GPUDevice,
+        descriptor: GPURenderBundleEncoderDescriptor,
+    ) -> Result<GPURenderBundleEncoder, JsValue>;
 }
 
 #[wasm_bindgen]
@@ -511,6 +552,41 @@ extern "C" {
     #[wasm_bindgen(method)]
     pub fn draw(
         encoder: &GPURenderPassEncoder,
+        vertex_count: u32,
+        instance_count: u32,
+        first_vertex: u32,
+        first_instance: u32,
+    );
+    #[wasm_bindgen(method, js_name = executeBundles, catch)]
+    pub fn execute_bundles(
+        encoder: &GPURenderPassEncoder,
+        bundles: Vec<GPURenderBundle>,
+    ) -> Result<(), JsValue>;
+}
+
+#[wasm_bindgen]
+extern "C" {
+    pub type GPURenderBundleEncoder;
+    pub type GPURenderBundle;
+
+    #[wasm_bindgen(method, catch)]
+    pub fn finish(encoder: &GPURenderBundleEncoder) -> Result<GPURenderBundle, JsValue>;
+    #[wasm_bindgen(method, catch, js_name = setPipeline)]
+    pub fn set_pipeline(
+        encoder: &GPURenderBundleEncoder,
+        pipeline: &GPURenderPipeline,
+    ) -> Result<(), JsValue>;
+    #[wasm_bindgen(method, catch, js_name = setVertexBuffer)]
+    pub fn set_vertex_buffer(
+        encoder: &GPURenderBundleEncoder,
+        slot: u32,
+        buffer: &GPUBuffer,
+        offset: usize,
+        size: usize,
+    ) -> Result<(), JsValue>;
+    #[wasm_bindgen(method)]
+    pub fn draw(
+        encoder: &GPURenderBundleEncoder,
         vertex_count: u32,
         instance_count: u32,
         first_vertex: u32,
@@ -667,10 +743,26 @@ pub async fn start(render_target_element: &HTMLCanvasElement) {
             .fragment(GPURenderPipelineFragmentProperties {
                 entry_point: "fsh".into(),
                 module: &shader,
-                targets: vec![GPURenderPipelineFragmentTarget { format }],
+                targets: vec![GPURenderPipelineFragmentTarget {
+                    format: format.clone(),
+                }],
             }),
         )
         .expect("Failed to create render pipeline");
+
+    let triangle_render = device
+        .create_render_bundle_encoder(GPURenderBundleEncoderDescriptor::new(vec![format]))
+        .expect("Failed to create triangle render bundle encoder");
+    triangle_render
+        .set_pipeline(&render_pipeline)
+        .expect("Failed to set render pipeline");
+    triangle_render
+        .set_vertex_buffer(0, &buffer, 0, 4 * 6)
+        .expect("Failed to set vertex buffer");
+    triangle_render.draw(3, 1, 0, 0);
+    let triangle_render = triangle_render
+        .finish()
+        .expect("Failed to finish triangle render bundle");
 
     let render_target_view = ctx
         .get_current_texture()
@@ -689,11 +781,8 @@ pub async fn start(render_target_element: &HTMLCanvasElement) {
     let rp = render_commands
         .begin_render_pass(render_pass)
         .expect("Failed to begin render pass");
-    rp.set_pipeline(&render_pipeline)
-        .expect("Failed to set pipeline");
-    rp.set_vertex_buffer(0, &buffer, 0, 4 * 6)
-        .expect("Failed to set vertex buffer");
-    rp.draw(3, 1, 0, 0);
+    rp.execute_bundles(vec![triangle_render])
+        .expect("Failed to execute render bundles");
     rp.end().expect("Failed to finish render pass");
     let render_commands = render_commands
         .finish()
